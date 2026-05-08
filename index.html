@@ -710,6 +710,82 @@
     color: #000;
     font-family: Arial, sans-serif;
   }
+
+  /* REGISTER PROMPT MODAL */
+  .register-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.82);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 300;
+    padding: 24px;
+  }
+  .register-modal.open { display: flex; }
+  .register-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 24px 20px;
+    width: 100%;
+    max-width: 380px;
+    animation: popIn .25s ease;
+  }
+  @keyframes popIn { from { transform: scale(.92); opacity:0; } to { transform: none; opacity:1; } }
+  .register-icon { font-size: 36px; text-align: center; margin-bottom: 10px; }
+  .register-title {
+    font-size: 17px;
+    font-weight: 800;
+    text-align: center;
+    margin-bottom: 6px;
+  }
+  .register-sub {
+    font-size: 12px;
+    color: var(--text2);
+    text-align: center;
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 18px;
+    word-break: break-all;
+  }
+  .register-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 13px 14px;
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    outline: none;
+    margin-bottom: 14px;
+  }
+  .register-input:focus { border-color: var(--accent); }
+  .register-btns { display: flex; gap: 10px; }
+  .btn-reg-skip {
+    flex: 1;
+    padding: 13px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text2);
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .btn-reg-save {
+    flex: 1.5;
+    padding: 13px;
+    background: var(--accent);
+    border: none;
+    border-radius: 12px;
+    color: #000;
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+  }
 </style>
 </head>
 <body>
@@ -912,10 +988,16 @@ function onScanSuccess(code) {
   if (code === lastScannedCode) return;
   lastScannedCode = code;
 
-  // Vibrate
   if (navigator.vibrate) navigator.vibrate(100);
 
-  showResult(code);
+  const product = products[code];
+  if (product) {
+    // Known product → show result directly
+    showResultCard(code, product.name);
+  } else {
+    // Unknown → ask to register
+    openRegisterModal(code);
+  }
 }
 function onScanError() {}
 
@@ -960,7 +1042,12 @@ function addToList() {
 function searchManual() {
   const code = document.getElementById('manual-code').value.trim();
   if (!code) return;
-  showResult(code);
+  const product = products[code];
+  if (product) {
+    showResultCard(code, product.name);
+  } else {
+    openRegisterModal(code);
+  }
   document.getElementById('manual-code').value = '';
 }
 
@@ -1256,19 +1343,72 @@ function shareWhatsApp() {
   window.open(url, '_blank');
 }
 
+// ─── REGISTER UNKNOWN PRODUCT ─────────────────────────────
+let pendingCode = null;
+
+function openRegisterModal(code) {
+  pendingCode = code;
+  document.getElementById('register-code-display').textContent = code;
+  document.getElementById('register-name-input').value = '';
+  document.getElementById('register-modal').classList.add('open');
+  setTimeout(() => document.getElementById('register-name-input').focus(), 300);
+}
+
+function skipRegister() {
+  document.getElementById('register-modal').classList.remove('open');
+  showResultCard(pendingCode, 'Producto sin nombre');
+  pendingCode = null;
+}
+
+function saveAndAdd() {
+  const name = document.getElementById('register-name-input').value.trim();
+  if (!name) {
+    document.getElementById('register-name-input').style.borderColor = 'var(--accent2)';
+    setTimeout(() => document.getElementById('register-name-input').style.borderColor = '', 1000);
+    return;
+  }
+  products[pendingCode] = { name, desc: '' };
+  save();
+  renderDB();
+  document.getElementById('register-modal').classList.remove('open');
+  showResultCard(pendingCode, name);
+  showToast('Producto guardado ✓');
+  pendingCode = null;
+}
+
+function showResultCard(code, name) {
+  lastScannedCode = code;
+  document.getElementById('result-code').textContent = code;
+  document.getElementById('result-name').textContent = name;
+  document.getElementById('qty-input').value = 1;
+  document.getElementById('result-card').classList.add('show');
+}
+
 // ─── INIT ─────────────────────────────────────────────────
 updateBadge();
 renderDB();
 
-// Enter key on manual input
 document.getElementById('manual-code').addEventListener('keydown', e => {
   if (e.key === 'Enter') searchManual();
 });
-
-// Enter key on modal inputs
 document.getElementById('modal-name').addEventListener('keydown', e => {
   if (e.key === 'Enter') saveProduct();
 });
 </script>
+
+<!-- REGISTER UNKNOWN PRODUCT MODAL -->
+<div class="register-modal" id="register-modal">
+  <div class="register-box">
+    <div class="register-icon">🏷️</div>
+    <div class="register-title">Producto no registrado</div>
+    <div class="register-sub" id="register-code-display">—</div>
+    <input class="register-input" id="register-name-input" type="text" placeholder="Escribí el nombre del producto...">
+    <div class="register-btns">
+      <button class="btn-reg-skip" onclick="skipRegister()">Omitir</button>
+      <button class="btn-reg-save" onclick="saveAndAdd()">Guardar y agregar</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
