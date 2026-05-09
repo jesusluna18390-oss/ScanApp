@@ -1487,7 +1487,7 @@ function generatePDF(withPrices) {
   const colCode  = hasPrice ? margin + 80 : margin + 100;
   const colQty   = hasPrice ? margin + 116 : pageW - margin - 10;
   const colPUnit = margin + 128;
-  const colSub   = pageW - margin;
+  const colSub   = pageW - margin - 8;
 
   // Column headers
   doc.setFillColor(30, 40, 60);
