@@ -837,11 +837,12 @@
   </div>
 
   <div class="manual-section">
-    <h3>Ingresar código manual</h3>
-    <div class="input-row">
-      <input class="input-field" id="manual-code" type="text" placeholder="Ej: 7790001234567">
+    <h3>Buscar por nombre o código</h3>
+    <div class="input-row" style="position:relative">
+      <input class="input-field" id="manual-code" type="text" placeholder="Nombre o código..." autocomplete="off" oninput="onManualInput()" onkeydown="onManualKey(event)">
       <button class="btn-search" onclick="searchManual()">Buscar</button>
     </div>
+    <div id="suggestions-box" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:10px;margin-top:6px;overflow:hidden;"></div>
   </div>
 </div>
 
@@ -1039,15 +1040,85 @@ function addToList() {
 }
 
 // ─── MANUAL SEARCH ────────────────────────────────────────
-function searchManual() {
-  const code = document.getElementById('manual-code').value.trim();
-  if (!code) return;
-  const product = products[code];
-  if (product) {
-    showResultCard(code, product.name);
-  } else {
-    openRegisterModal(code);
+// ─── MANUAL SEARCH + AUTOCOMPLETE ─────────────────────────
+let selectedSuggestion = -1;
+
+function onManualInput() {
+  const query = document.getElementById('manual-code').value.trim().toLowerCase();
+  const box = document.getElementById('suggestions-box');
+  selectedSuggestion = -1;
+
+  if (!query || query.length < 1) { box.style.display = 'none'; return; }
+
+  // Match by name OR code
+  const matches = Object.entries(products).filter(([code, p]) =>
+    p.name.toLowerCase().includes(query) || code.includes(query)
+  ).slice(0, 6);
+
+  if (matches.length === 0) { box.style.display = 'none'; return; }
+
+  box.style.display = 'block';
+  box.innerHTML = matches.map(([code, p], i) => {
+    const nameHL = p.name.replace(new RegExp(`(${query})`, 'gi'), '<mark style="background:var(--accent);color:#000;border-radius:3px;padding:0 2px">$1</mark>');
+    return `<div class="suggestion-item" data-code="${code}" onclick="selectSuggestion('${code}')"
+      style="padding:11px 14px;border-bottom:1px solid var(--border);cursor:pointer;display:flex;flex-direction:column;gap:2px">
+      <span style="font-size:14px;font-weight:700">${nameHL}</span>
+      <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--accent)">${code}</span>
+    </div>`;
+  }).join('');
+}
+
+function onManualKey(e) {
+  const box = document.getElementById('suggestions-box');
+  const items = box.querySelectorAll('.suggestion-item');
+  if (e.key === 'ArrowDown') {
+    selectedSuggestion = Math.min(selectedSuggestion + 1, items.length - 1);
+    items.forEach((el, i) => el.style.background = i === selectedSuggestion ? 'var(--border)' : '');
+  } else if (e.key === 'ArrowUp') {
+    selectedSuggestion = Math.max(selectedSuggestion - 1, -1);
+    items.forEach((el, i) => el.style.background = i === selectedSuggestion ? 'var(--border)' : '');
+  } else if (e.key === 'Enter') {
+    if (selectedSuggestion >= 0 && items[selectedSuggestion]) {
+      const code = items[selectedSuggestion].dataset.code;
+      selectSuggestion(code);
+    } else {
+      searchManual();
+    }
+  } else if (e.key === 'Escape') {
+    box.style.display = 'none';
   }
+}
+
+function selectSuggestion(code) {
+  document.getElementById('manual-code').value = '';
+  document.getElementById('suggestions-box').style.display = 'none';
+  showResultCard(code, products[code].name);
+}
+
+function searchManual() {
+  const query = document.getElementById('manual-code').value.trim();
+  document.getElementById('suggestions-box').style.display = 'none';
+  if (!query) return;
+
+  // Search by code exact match first
+  if (products[query]) {
+    showResultCard(query, products[query].name);
+    document.getElementById('manual-code').value = '';
+    return;
+  }
+
+  // Search by name (partial)
+  const match = Object.entries(products).find(([code, p]) =>
+    p.name.toLowerCase().includes(query.toLowerCase())
+  );
+  if (match) {
+    showResultCard(match[0], match[1].name);
+    document.getElementById('manual-code').value = '';
+    return;
+  }
+
+  // Not found — offer to register as new code
+  openRegisterModal(query);
   document.getElementById('manual-code').value = '';
 }
 
@@ -1389,7 +1460,7 @@ updateBadge();
 renderDB();
 
 document.getElementById('manual-code').addEventListener('keydown', e => {
-  if (e.key === 'Enter') searchManual();
+  onManualKey(e);
 });
 document.getElementById('modal-name').addEventListener('keydown', e => {
   if (e.key === 'Enter') saveProduct();
