@@ -1,0 +1,20 @@
+
+SCANAPP
+
+INSTRUCCIONES:
+
+1. Crear repositorio en GitHub.
+2. Subir estos archivos.
+3. Ir a:
+   Settings → Pages
+4. Elegir:
+   main / root
+5. Guardar.
+
+Después:
+- Abrir el link desde Chrome.
+- Instalar la app desde el menú de Chrome.
+
+IMPORTANTE:
+Si tenías instalada una versión anterior:
+- Eliminála antes de instalar esta nueva versión.
